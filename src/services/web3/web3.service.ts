@@ -1,4 +1,4 @@
-import { Ref, ref } from 'vue';
+import { ComputedRef, computed } from 'vue';
 import { Contract } from '@ethersproject/contracts';
 import { ErrorCode } from '@ethersproject/logger';
 import {
@@ -19,16 +19,16 @@ const RPC_INVALID_PARAMS_ERROR_CODE = -32602;
 const EIP1559_UNSUPPORTED_REGEX = /network does not support EIP-1559/i;
 
 export default class Web3Service {
-  provider: Ref<Web3Provider | JsonRpcProvider>;
+  provider: ComputedRef<Web3Provider | JsonRpcProvider>;
 
   constructor(
     private readonly rpcProviderService = _rpcProviderService,
     private readonly config: ConfigService = configService
   ) {
-    this.provider = ref(this.rpcProviderService.jsonProvider);
+    this.provider = computed(() => this.rpcProviderService.jsonProvider);
   }
 
-  public setProvider(provider: Ref<Web3Provider | JsonRpcProvider>) {
+  public setProvider(provider: ComputedRef<Web3Provider | JsonRpcProvider>) {
     this.provider = provider;
   }
 
@@ -61,12 +61,11 @@ export default class Web3Service {
     forceEthereumLegacyTxType = false
   ): Promise<TransactionResponse> {
     const signer = this.provider.value.getSigner();
-    const contract = new Contract(contractAddress, abi, this.provider.value);
-    const contractWithSigner = contract.connect(signer);
+    const contract = new Contract(contractAddress, abi, signer);
 
     try {
       const gasPriceSettings = await gasPriceService.getGasSettingsForContractCall(
-        contractWithSigner,
+        contract,
         action,
         params,
         options,
@@ -74,7 +73,7 @@ export default class Web3Service {
       );
       options = { ...options, ...gasPriceSettings };
 
-      return await contractWithSigner[action](...params, options);
+      return await contract[action](...params, options);
     } catch (e) {
       if (
         e.code === RPC_INVALID_PARAMS_ERROR_CODE &&
