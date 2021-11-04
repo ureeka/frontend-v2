@@ -19,22 +19,23 @@ const RPC_INVALID_PARAMS_ERROR_CODE = -32602;
 const EIP1559_UNSUPPORTED_REGEX = /network does not support EIP-1559/i;
 
 export default class Web3Service {
-  provider: ComputedRef<Web3Provider | JsonRpcProvider>;
+  appProvider: ComputedRef<JsonRpcProvider>;
+  userProvider!: ComputedRef<Web3Provider>;
 
   constructor(
     private readonly rpcProviderService = _rpcProviderService,
     private readonly config: ConfigService = configService
   ) {
-    this.provider = computed(() => this.rpcProviderService.jsonProvider);
+    this.appProvider = computed(() => this.rpcProviderService.jsonProvider);
   }
 
-  public setProvider(provider: ComputedRef<Web3Provider | JsonRpcProvider>) {
-    this.provider = provider;
+  public setUserProvider(provider: ComputedRef<Web3Provider>) {
+    this.userProvider = provider;
   }
 
   async getEnsName(address: string): Promise<string | null> {
     try {
-      return await this.provider.value.lookupAddress(address);
+      return await this.appProvider.value.lookupAddress(address);
     } catch (error) {
       return null;
     }
@@ -47,7 +48,7 @@ export default class Web3Service {
   }
 
   async getUserAddress(): Promise<string> {
-    const signer = this.provider.value.getSigner();
+    const signer = this.userProvider.value.getSigner();
     const userAddress: string = await signer.getAddress();
     return userAddress;
   }
@@ -60,7 +61,7 @@ export default class Web3Service {
     options: Record<string, any>,
     forceEthereumLegacyTxType = false
   ): Promise<TransactionResponse> {
-    const signer = this.provider.value.getSigner();
+    const signer = this.userProvider.value.getSigner();
     const contract = new Contract(contractAddress, abi, signer);
 
     try {
