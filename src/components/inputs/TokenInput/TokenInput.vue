@@ -11,7 +11,9 @@ import { useI18n } from 'vue-i18n';
 import useWeb3 from '@/services/web3/useWeb3';
 import { TokenInfo } from '@/types/TokenList';
 import { Rules } from '@/components/_global/BalTextInput/BalTextInput.vue';
-import { ETH_TX_BUFFER } from '@/constants/transactions';
+import { configService } from '@/services/config/config.service';
+
+const { nativeAsset } = configService.network;
 
 /**
  * TYPES
@@ -73,7 +75,8 @@ const _address = ref<string>('');
 /**
  * COMPOSABLEs
  */
-const { getToken, balanceFor, nativeAsset } = useTokens();
+
+const { getToken, balanceFor } = useTokens();
 const { fNum, toFiat } = useNumbers();
 const { currency } = useUserSettings();
 const { t } = useI18n();
@@ -90,7 +93,7 @@ const isMaxed = computed(() => {
     return (
       _amount.value ===
       bnum(tokenBalance.value)
-        .minus(ETH_TX_BUFFER)
+        .minus(nativeAsset.minTransactionBuffer)
         .toString()
     );
   } else {
@@ -152,9 +155,11 @@ const setMax = () => {
 
   if (_address.value === nativeAsset.address && !props.disableEthBuffer) {
     // Subtract buffer for gas
-    _amount.value = bnum(tokenBalance.value).gt(ETH_TX_BUFFER)
+    _amount.value = bnum(tokenBalance.value).gt(
+      nativeAsset.minTransactionBuffer
+    )
       ? bnum(tokenBalance.value)
-          .minus(ETH_TX_BUFFER)
+          .minus(nativeAsset.minTransactionBuffer)
           .toString()
       : '0';
   } else {
@@ -253,6 +258,17 @@ watchEffect(() => {
           :color="barColor"
           class="mt-2"
         />
+        <div
+          v-if="isMaxed"
+          class="mt-2 text-yellow-500 dark:text-yellow-200 text-sm"
+        >
+          {{
+            t('minTransactionBuffer', [
+              nativeAsset.minTransactionBuffer,
+              nativeAsset.symbol
+            ])
+          }}
+        </div>
       </div>
     </template>
   </BalTextInput>
