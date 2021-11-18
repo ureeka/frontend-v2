@@ -1,4 +1,4 @@
-import { ComputedRef, computed } from 'vue';
+import { ComputedRef } from 'vue';
 import { Contract } from '@ethersproject/contracts';
 import { ErrorCode } from '@ethersproject/logger';
 import {
