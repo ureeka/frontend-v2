@@ -46,6 +46,8 @@ const poolCreationState = reactive({ ...emptyPoolCreationState });
 
 const tokenColors = ref<string[]>([]);
 
+const userModifiedTokenNum = ref(-1);
+
 export default function usePoolCreation() {
   const { balanceFor, priceFor, getToken } = useTokens();
   const { account, getProvider } = useWeb3();
@@ -232,21 +234,31 @@ export default function usePoolCreation() {
     // need to filter out the empty tokens just in case
     const validTokens = tokensList.value.filter(t => t !== '');
     const optimisedLiquidity = {};
-    // token with the lowest balance is the bottleneck
-    const bottleneckToken = minBy(
-      validTokens,
-      token => Number(balanceFor(token)) * Number(priceFor(token))
-    );
-    if (!bottleneckToken) return optimisedLiquidity;
+    let bip;
+    // If a user has modified the amount for a token, that token is used to optimise the rest
+    if (userModifiedTokenNum.value != -1) {
+      const modifiedToken = poolCreationState.tokenWeights[userModifiedTokenNum.value];
+      bip = bnum(priceFor(modifiedToken.tokenAddress || '0'))
+        .times(modifiedToken.amount)
+        .div(modifiedToken.weight);
+    } else {
+      // token with the lowest balance is the bottleneck
+      const bottleneckToken = minBy(
+        validTokens,
+        token => Number(balanceFor(token)) * Number(priceFor(token))
+      );
+      if (!bottleneckToken) return optimisedLiquidity;
 
-    const bottleneckWeight =
-      poolCreationState.tokenWeights.find(
-        t => t.tokenAddress === bottleneckToken
-      )?.weight || 0;
+      const bottleneckWeight =
+        poolCreationState.tokenWeights.find(
+          t => t.tokenAddress === bottleneckToken
+        )?.weight || 0;
 
-    const bip = bnum(priceFor(bottleneckToken || '0'))
-      .times(balanceFor(bottleneckToken))
-      .div(bottleneckWeight);
+      bip = bnum(priceFor(bottleneckToken || '0'))
+        .times(balanceFor(bottleneckToken))
+        .div(bottleneckWeight);
+    }
+
     for (const token of poolCreationState.tokenWeights) {
       // get the price for a single token
       const tokenPrice = bnum(priceFor(token.tokenAddress));
@@ -264,7 +276,7 @@ export default function usePoolCreation() {
   const maxInitialLiquidity = computed(() => {
     return sumBy(Object.values(optimisedLiquidity.value), (liq: any) =>
       Number(liq.liquidityRequired)
-    )
+    );
   });
 
   const totalLiquidity = computed(() => {
@@ -281,7 +293,7 @@ export default function usePoolCreation() {
   const tokensWithNoPrice = computed(() => {
     const validTokens = tokensList.value.filter(t => t !== '');
     return validTokens.filter(token => priceFor(token) === 0);
-  })
+  });
 
   return {
     ...toRefs(poolCreationState),
@@ -307,6 +319,7 @@ export default function usePoolCreation() {
     createPool,
     joinPool,
     tokenColors,
-    updateTokenColors
+    updateTokenColors,
+    userModifiedTokenNum
   };
 }
